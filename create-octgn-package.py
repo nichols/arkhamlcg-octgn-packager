@@ -28,6 +28,8 @@ OCTGN package schema:
             <CardGUID>.b.jpg    # reverse side
             <CardGUID>.png      # PNGs are OK too
 
+Scenarios are numbered as they are in the campaign guide, e.g. '1a - Extracurricular Activity'
+
 """
 
 import json
@@ -42,8 +44,30 @@ from urllib.parse import urlparse
 
 game_id = 'a6d114c7-2e2a-4896-ad8c-0330605c90bf'
 
+cycles = {
+        '01': 'Core',
+        '02': 'The Dunwich Legacy',
+        '03': 'The Path to Carcosa',
+        '04': 'The Forgotten Age',
+        '05': 'The Circle Undone',
+}
+
+standalones = {
+        '101': 'Curse of the Rougarou',
+        '102': 'Carnevale of Horrors',
+        '103': 'Labyrinths of Lunacy',
+        '104': 'Guardians of the Abyss',
+}
+
+returns = {
+        '201': 'Return to The Night of the Zealot',
+        '202': 'Return to The Dunwich Legacy',
+}
+
 
 def load_set_from_json(json_filename):
+    # TODO: load scenario string here if needed
+
     with open(json_filename, 'r') as json_file:
         arkhamset = json.load(json_file)
     return arkhamset
@@ -63,11 +87,6 @@ def download_img(url, dest):
         with open(dest, 'wb') as f:
             r.raw.decode_content = True
             shutil.copyfileobj(r.raw, f)
-
-
-# add GUID
-def create_id(card):
-    card['id'] = str(uuid.uuid4())
 
 
 # collect just scenario (non-player) cards and make a deck file of them, put in correct directory
@@ -96,19 +115,18 @@ def create_card_image_files(arkhamset, path):
 def build_octgn_package(arkhamset):
     arkhamset['id'] = str(uuid.uuid4())
     for card in arkhamset['cards']:
-        create_id(card)
+        card['id'] = str(uuid.uuid4())
 
     decks_path = "Decks/Arkham Horror - The Card Game/" + cycle_string
-    gamedb_decks_path = "GameDatabase/" + game_id + "/" + decks_path
+    #gamedb_decks_path = "GameDatabase/" + game_id + "/" + decks_path  # don't need this
     gamedb_sets_path = "GameDatabase/" + game_id + "/Sets/" + arkhamset['id']
     imgdb_path = "ImageDatabase/" + game_id + "/Sets/" + arkhamset['id'] + "/Cards"
 
-    scenario_o8d_path = gamedb_decks_path + "/" + scenario_string + ".o8d"
+    scenario_o8d_path = decks_path + "/" + scenario_string + ".o8d"
     set_xml_path = gamedb_sets_path + "/set.xml"
 
     try:
         os.makedirs(decks_path)
-        os.makedirs(gamedb_decks_path)
         os.makedirs(gamedb_sets_path)
         os.makedirs(imgdb_path)
     except FileExistsError:
@@ -118,7 +136,6 @@ def build_octgn_package(arkhamset):
     create_scenario_o8d(arkhamset, scenario_o8d_path)
     create_set_xml(arkhamset, set_xml_path)
     create_card_image_files(arkhamset, imgdb_path)
-    # also we should copy the resulting file to decks_path
 
     # now zip everything?
 
@@ -134,7 +151,8 @@ def main():
     json_filename = sys.argv[1]
     arkhamset = load_set_from_json(json_filename)
     print("loaded {}".format(arkhamset['setname']))
-
+    
+    # test card image download
     card_url = arkhamset['cards'][0]['img_url_front']
     ext = get_extension_from_url(card_url)
     dest = 'card_img' + ext
