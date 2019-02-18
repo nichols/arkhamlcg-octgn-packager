@@ -83,21 +83,6 @@ def get_card(url):
     return card
 
 
-def test_set():
-    url = 'http://www.cardgamedb.com/index.php/arkhamhorror/arkham-horror-the-card-game/_/the-path-to-carcosa-cycle/the-pallid-mask/'
-    url_with_suffix = url + suffix_1000_per_page
-    this_set = get_set(url_with_suffix)
-    print("Set: {}".format(set['setname']))
-    for c in set['cards']:
-        print(c)
-
-def test_card():
-    url = 'http://www.cardgamedb.com/index.php/arkhamhorror/arkham-horror-the-card-game/_/the-path-to-carcosa-cycle/the-pallid-mask/shortcut-r817'
-    card = get_card(url)
-    for k, v in card.items():
-        print("{}:\t{}".format(k, v))
-
-
 def main():
     if len(sys.argv) < 2:
         print("get-set-data <cardgamedb_url>")
