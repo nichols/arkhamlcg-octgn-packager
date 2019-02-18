@@ -15,7 +15,7 @@ import sys
 import getopt
 from bs4 import BeautifulSoup
 
-card_fields = ['name', 'game_number', 'cycle_number', 'quantity', 'illustrator', 'type', 'encounter_set', 'encounter_set_number', 'traits', 'game_text', 'flavor_text', 'class', 'level', 'willpower', 'intellect', 'combat', 'agility', 'wild']
+card_fields = ['name', 'game_number', 'cycle_number', 'quantity', 'illustrator', 'type', 'encounter_set', 'encounter_set_number', 'traits', 'text_front', 'text_back', 'flavor_text', 'class', 'level', 'willpower', 'intellect', 'combat', 'agility', 'wild', 'img_url_front', 'img_url_back']
 
 # only reason for this regex is to get the card's game_number
 card_link_prefix = 'http://www.cardgamedb.com/index.php/arkhamhorror/arkham-horror-the-card-game/_/'
