@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-# Input: JSON file containing metadata for a set of cards, including URLs of card images
-# Creates necessary directories and files to load this set into OCTGN
+# Input: path of json file containing metadata for a set of cards
+# Such a json file can be produced by get-set-data.py
 
 """
 OCTGN package schema:
@@ -15,7 +15,7 @@ OCTGN package schema:
     a6d114c7-2e2a-4896-ad8c-0330605c90bf
       Decks
         <CycleNumber> - <CycleName>
-          <ScenarioNumber> - <ScenarioName>.o8d 
+          <ScenarioNumber> - <ScenarioName>.o8d
       Sets
         <SetGUID>
           set.xml                               # XML file with metadata for all cards in this set
@@ -32,18 +32,7 @@ Scenarios are numbered as they are in the campaign guide, e.g. '1a - Extracurric
 
 """
 
-import json
-import uuid
-import sys
-import subprocess
-import os
-import re
-import requests
-import shutil
-from urllib.parse import urlparse
-
-game_id = 'a6d114c7-2e2a-4896-ad8c-0330605c90bf'
-
+"""
 cycles = {
         '01': 'Core',
         '02': 'The Dunwich Legacy',
@@ -63,11 +52,33 @@ returns = {
         '201': 'Return to The Night of the Zealot',
         '202': 'Return to The Dunwich Legacy',
 }
+##TODO: somehow use this to generate scenario_string for a given set if applicable
+"""
+
+import json
+import uuid
+import sys
+import os
+import re
+import requests
+import shutil
+import xml.etree.ElementTree as ET
+from urllib.parse import urlparse
+
+game_id = 'a6d114c7-2e2a-4896-ad8c-0330605c90bf'
+
+# octgn encoding of the five skill icons
+skill_icon_symbols = {
+    'Willpower': 'ά',
+    'Intellect': 'έ',
+    'Combat': 'ή',
+    'Agility': 'ί',
+    'Wild': 'ΰ',
+}
 
 
 def load_set_from_json(json_filename):
-    # TODO: load scenario string here if needed
-
+    # TODO: load scenario string here if applicable
     with open(json_filename, 'r') as json_file:
         arkhamset = json.load(json_file)
     return arkhamset
@@ -89,58 +100,144 @@ def download_img(url, dest):
             shutil.copyfileobj(r.raw, f)
 
 
-# collect just scenario (non-player) cards and make a deck file of them, put in correct directory
-def create_scenario_o8d(arkhamset, path):
+def is_double_sided(card):
+    return ('_image_url_back' in card) or ('_text_back' in card)
+
+
+def get_card_size(card):
+    ## TODO: guess card size based on type and fields.
+    # possible values: 'InvestigatorCard', 'HorizCard', 'EncounterCard', 'MiniCard'
+    return 'InvestigatorCard'
+
+
+# convert cardgamedb card text into OCTGN xml card text
+def reformat_card_text_for_octgn(text):
+    ## TODO: handle special symbols and markup for xml
+    return text
+
+
+# convert skill icon info in cardgamedb format into OCTGN format (single string)
+# delete original skill fields from card dict
+def make_skill_icons_string(card):
+    icons_string = ''
+    for skill, symbol in skill_icon_symbols.items():
+        num_icons = int(card[skill])
+        icons_string += (symbol * num_icons)
+    card['Skill Icons'] = icons_string
+    del card['Willpower']
+    del card['Intellect']
+    del card['Combat']
+    del card['Agility']
+    del card['Wild']
+
+
+def make_slots_string(card):
+    ## TODO: handle number of hand slots, handle weird stuff like flamethrower
     pass
 
 
-# make set.xml file containing metadata on all cards, put in correct directory
+def card_to_xml(card):
+    size = get_card_size(card)
+    front_attrib = {'id': card['_id'], 'name': card['Name'], 'size': size}
+    front_root = ET.Element('card', front_attrib)
+
+    # if this is a player card but not an investigator or mini card
+    if card['Type'] in ['Asset', 'Skill', 'Event']:
+        make_skill_icons_string(card)
+    if 'Slots' in card:
+        make_slots_string(card)
+    card['Text'] = reformat_card_text_for_octgn(card['Text'])
+
+    for k, v in card.items():
+        if not k.startswith('_'):
+            ET.SubElement(front_root, 'property', {'name': k, 'value': v})
+
+    if is_double_sided(card):
+        # note that the back might have a different name, but we don't know
+        back_attrib = {'name': card['Name'], 'size': size, 'type': 'B'}
+        back_root = ET.SubElement(front_root, 'alternate', back_attrib)
+        back_text = reformat_card_text_for_octgn(card['_text_back'])
+        ET.SubElement(back_root, 'property', {'name': 'Text', 'value': back_text})
+        # the back might have more fields, but cardgamedb only gives us the text
+        ## TODO: update other back properties if possible
+
+    return front_root
+
+
+# make set.xml file containing metadata on all cards
 def create_set_xml(arkhamset, path):
-    pass
+    ## TODO: figure out XML header? Or generate it with options of ET.write()?
+    set_attrib = {
+        'xmlns:noNamespaceSchemaLocation': 'CardSet.xsd',   # is this right?
+        'name': arkhamset['name'],
+        'id': arkhamset['id'],
+        'gameId': game_id,
+        'gameVersion': '1.0.0.0',
+        'version': '1.0.0',
+    }
+    set_root = ET.Element('set', set_attrib)
+    cards = ET.SubElement(set_root, 'cards')
+    for card in arkhamset['cards']:
+        cards.append(card_to_xml(card))
+
+    ## TODO: handle exceptions or whatever
+    ## TODO: make the xml file pretty (new line for each tag, indented, etc)
+    xml_tree = ET.ElementTree(set_root)
+    xml_tree.write(path, encoding='UTF-8', xml_declaration=True)
 
 
 # download all card images, set filename = GUID, put in correct directory
 def create_card_image_files(arkhamset, path):
     for card in arkhamset['cards']:
-        url_front = card['img_url_front']
-        dest_front = path + card['id'] + get_extension_from_url(url_front)
+        url_front = card['_image_url_front']
+        dest_front = path + '/' + card['_id'] + get_extension_from_url(url_front)
         download_img(url_front, dest_front)
-        
-        url_back = card['img_url_back']
-        if url_back:
-            dest_back = path + card['id'] + ".b" + get_extension_from_url(url_back)
+
+        if is_double_sided(card):
+            url_back = card['_image_url_back']
+            dest_back = path + '/' + card['_id'] + '.b' + get_extension_from_url(url_back)
             download_img(url_back, dest_back)
+    ##TODO: handle exceptions or whatever
 
 
 def build_octgn_package(arkhamset):
+    # generate unique IDs for set and cards
     arkhamset['id'] = str(uuid.uuid4())
     for card in arkhamset['cards']:
-        card['id'] = str(uuid.uuid4())
+        card['_id'] = str(uuid.uuid4())
 
+    """
+    # we're not generating .o8d file for now
     decks_path = "Decks/Arkham Horror - The Card Game/" + cycle_string
-    #gamedb_decks_path = "GameDatabase/" + game_id + "/" + decks_path  # don't need this
-    gamedb_sets_path = "GameDatabase/" + game_id + "/Sets/" + arkhamset['id']
-    imgdb_path = "ImageDatabase/" + game_id + "/Sets/" + arkhamset['id'] + "/Cards"
-
+    gamedb_decks_path = "GameDatabase/" + game_id + "/" + decks_path
     scenario_o8d_path = decks_path + "/" + scenario_string + ".o8d"
+    """
+
+    gamedb_sets_path = "GameDatabase/" + game_id + "/Sets/" + arkhamset['id']
+    imagedb_path = "ImageDatabase/" + game_id + "/Sets/" + arkhamset['id'] + "/Cards"
     set_xml_path = gamedb_sets_path + "/set.xml"
 
+    ## TODO: it's probably better to create the needed directories inside the
+    ## functions create_set_xml and create_card_image_files rather than do it here
     try:
-        os.makedirs(decks_path)
         os.makedirs(gamedb_sets_path)
-        os.makedirs(imgdb_path)
+        os.makedirs(imagedb_path)
     except FileExistsError:
         # directory already exists
         raise
 
-    create_scenario_o8d(arkhamset, scenario_o8d_path)
+    print("made directories:")
+    print("\t{}\n\t{}".format(gamedb_sets_path, imagedb_path))
+
+    # create_scenario_o8d(arkhamset, scenario_o8d_path)
+    
     create_set_xml(arkhamset, set_xml_path)
-    create_card_image_files(arkhamset, imgdb_path)
+    print("created set XML file.")
+    create_card_image_files(arkhamset, imagedb_path)
+    print("created card image files.")
 
-    # now zip everything?
-
-
-
+    ##TODO: handle exceptions or whatever
+    ##TODO: zip directory tree at the end?
 
 
 def main():
@@ -149,14 +246,10 @@ def main():
         return
 
     json_filename = sys.argv[1]
+    assert json_filename.endswith('.json')
+
     arkhamset = load_set_from_json(json_filename)
-    print("loaded {}".format(arkhamset['setname']))
-    
-    # test card image download
-    card_url = arkhamset['cards'][0]['img_url_front']
-    ext = get_extension_from_url(card_url)
-    dest = 'card_img' + ext
-    download_img(card_url, dest)
+    build_octgn_package(arkhamset)
 
 
 if __name__ == '__main__':
