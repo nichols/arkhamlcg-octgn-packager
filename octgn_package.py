@@ -1,7 +1,4 @@
-#!/usr/bin/env python3
-
-# Input: path of json file containing metadata for a set of cards
-# Such a json file can be produced by get-set-data.py
+# TODO: add module description
 
 """
 OCTGN package schema:
@@ -32,31 +29,7 @@ Scenarios are numbered as they are in the campaign guide, e.g. '1a - Extracurric
 
 """
 
-"""
-cycles = {
-        '01': 'Core',
-        '02': 'The Dunwich Legacy',
-        '03': 'The Path to Carcosa',
-        '04': 'The Forgotten Age',
-        '05': 'The Circle Undone',
-}
-
-standalones = {
-        '101': 'Curse of the Rougarou',
-        '102': 'Carnevale of Horrors',
-        '103': 'Labyrinths of Lunacy',
-        '104': 'Guardians of the Abyss',
-}
-
-returns = {
-        '201': 'Return to The Night of the Zealot',
-        '202': 'Return to The Dunwich Legacy',
-}
-##TODO: somehow use this to generate scenario_string for a given set if applicable
-"""
-
 import uuid
-import sys
 import os
 import re
 import requests
@@ -64,41 +37,6 @@ import shutil
 import xml.etree.ElementTree as ET
 from urllib.parse import urlparse
 
-import pickle
-import os.path
-from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-
-# If modifying these scopes, delete the file token.pickle.
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
-
-# The ID and range of a sample spreadsheet.
-SAMPLE_SPREADSHEET_ID = '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms'
-SAMPLE_RANGE_NAME = 'Class Data!A2:E'
-
-def get_sheets_api_service():
-    creds = None
-    # The file token.pickle stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
-            creds = pickle.load(token)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
-            creds = flow.run_local_server()
-        # Save the credentials for the next run
-        with open('token.pickle', 'wb') as token:
-            pickle.dump(creds, token)
-
-    service = build('sheets', 'v4', credentials=creds)
-    return service
 
 game_id = 'a6d114c7-2e2a-4896-ad8c-0330605c90bf'
 
@@ -133,7 +71,7 @@ def is_double_sided(card):
 
 
 def get_card_size(card):
-    ## TODO: guess card size based on type and fields.
+    # TODO: guess card size based on type and fields.
     # possible values: 'InvestigatorCard', 'HorizCard', 'EncounterCard', 'MiniCard'
     return 'InvestigatorCard'
 
@@ -187,14 +125,14 @@ def card_to_xml(card):
         back_text = reformat_card_text_for_octgn(card['_text_back'])
         ET.SubElement(back_root, 'property', {'name': 'Text', 'value': back_text})
         # the back might have more fields, but cardgamedb only gives us the text
-        ## TODO: update other back properties if possible
+        # TODO: update other back properties if possible
 
     return front_root
 
 
 # make set.xml file containing metadata on all cards
 def create_set_xml(arkhamset, path):
-    ## TODO: figure out XML header? Or generate it with options of ET.write()?
+    # TODO: figure out XML header? Or generate it with options of ET.write()?
     set_attrib = {
         'xmlns:noNamespaceSchemaLocation': 'CardSet.xsd',   # is this right?
         'name': arkhamset['name'],
@@ -208,8 +146,8 @@ def create_set_xml(arkhamset, path):
     for card in arkhamset['cards']:
         cards.append(card_to_xml(card))
 
-    ## TODO: handle exceptions or whatever
-    ## TODO: make the xml file pretty (new line for each tag, indented, etc)
+    # TODO: handle exceptions or whatever
+    # TODO: make the xml file pretty (new line for each tag, indented, etc)
     xml_tree = ET.ElementTree(set_root)
     xml_tree.write(path, encoding='UTF-8', xml_declaration=True)
 
@@ -225,10 +163,10 @@ def create_card_image_files(arkhamset, path):
             url_back = card['_image_url_back']
             dest_back = path + '/' + card['_id'] + '.b' + get_extension_from_url(url_back)
             download_img(url_back, dest_back)
-    ##TODO: handle exceptions or whatever
+    # TODO: handle exceptions or whatever
 
 
-def build_octgn_package(arkhamset):
+def create_octgn_package(arkhamset):
     # generate unique IDs for set and cards
     arkhamset['id'] = str(uuid.uuid4())
     for card in arkhamset['cards']:
@@ -245,8 +183,8 @@ def build_octgn_package(arkhamset):
     imagedb_path = "ImageDatabase/" + game_id + "/Sets/" + arkhamset['id'] + "/Cards"
     set_xml_path = gamedb_sets_path + "/set.xml"
 
-    ## TODO: it's probably better to create the needed directories inside the
-    ## functions create_set_xml and create_card_image_files rather than do it here
+    # TODO: it's probably better to create the needed directories inside the
+    # functions create_set_xml and create_card_image_files rather than do it here
     try:
         os.makedirs(gamedb_sets_path)
         os.makedirs(imagedb_path)
@@ -264,21 +202,8 @@ def build_octgn_package(arkhamset):
     create_card_image_files(arkhamset, imagedb_path)
     print("created card image files.")
 
-    ##TODO: handle exceptions or whatever
-    ##TODO: zip directory tree at the end?
-
-
-def main():
-    if len(sys.argv) < 2:
-        print("create-octgn-package.py <json file>")
-        return
-
-    json_filename = sys.argv[1]
-    assert json_filename.endswith('.json')
-
-    arkhamset = load_set_from_json(json_filename)
-    build_octgn_package(arkhamset)
-
-
-if __name__ == '__main__':
-    main()
+    # TODO: handle exceptions or whatever
+    # TODO: zip directory tree at the end?
+    # TODO: return path to created directory or archive
+    path = ''
+    return path

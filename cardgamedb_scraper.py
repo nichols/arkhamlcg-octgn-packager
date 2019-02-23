@@ -1,54 +1,31 @@
-#!/usr/bin/env python3
+# TODO: add module description
 
-# Input:  url of a set on cardgamedb, e.g.
-#         'http://www.cardgamedb.com/index.php/arkhamhorror/arkham-horror-the-card-game/_/guardians-of-the-abyss/'
-#
-# Output: 'created <set-name>.json'
-#
-# Creates a .json file containing all the cards in the set.
 """
 # these are the fields we can get from cardgamedb and use in OCTGN unchanged
 common_fields = ['Type', 'Class', 'Health', 'Sanity', 'Illustrator',
 'Willpower', 'Intellect', 'Combat', 'Agility']
 
 # these fields need to be constructed individually
-special_fields = ['Class Number', 'Name', 'Traits', 'Text', 'Flavor Text',]
+special_fields = ['Card Number', 'Name', 'Traits', 'Text', 'Flavor Text']
 
 # internal fields that will be read from cardgamedb but not directly used by OCTGN
-internal_fields = ['_id', '_text_back', '_image_url_front', '_image_url_back']
+internal_fields = ['_text_back', '_image_url_front', '_image_url_back']
 
 # fields supported by OCTGN but not provided by cardgamedb
-# the only one of these we really miss badly is Encounter Set
 missing_fields = ['Subtype', 'Encounter Set', 'Unique', 'Shroud', 'Clues',
 'Doom', 'Victory Points']
+# the only one of these we really miss badly is Encounter Set
+# these can be filled in manually in a spreadsheet
 
-# Another cardgamedb limitation:
-# We can't get any fields for the back side of the card except the text.
+# Another cardgamedb limitation: we can't get any fields for the back side of
+# the card except the text.
 """
 
 import requests
 import re
-import json
-import sys
 from bs4 import BeautifulSoup
 
 suffix_1000_per_page = '?per_page=1000'
-
-
-def get_set(url):
-    page = requests.get(url + suffix_1000_per_page).text
-    soup = BeautifulSoup(page, 'html.parser')
-    setname = soup.h1.string.strip()
-
-    cards = []
-    links = [cardText.find('a') for cardText in soup.find_all('div', 'cardText')]
-    for l in links:
-        card_url = l['href'].strip()
-        print("loading {}...".format(card_url))
-        c = get_card(card_url)
-        cards.append(c)
-        print("\t...done.")
-    return {'name': setname, 'cards': cards}
 
 
 def get_card(url):
@@ -84,18 +61,17 @@ def get_card(url):
     return card
 
 
-def main():
-    if len(sys.argv) < 2:
-        print("get-set-data <cardgamedb_url>")
-        return
-    url = sys.argv[1]
-    print("starting with url={}".format(url))
-    my_set = get_set(url)
-    output_filename = my_set['name'] + '.json'
-    with open(output_filename, 'w') as outfile:
-        json.dump(my_set, outfile)
-    print("created {}".format(output_filename))
+def scrape_set_from_url(url):
+    page = requests.get(url + suffix_1000_per_page).text
+    soup = BeautifulSoup(page, 'html.parser')
+    setname = soup.h1.string.strip()
 
-
-if __name__ == '__main__':
-    main()
+    cards = []
+    links = [cardText.find('a') for cardText in soup.find_all('div', 'cardText')]
+    for l in links:
+        card_url = l['href'].strip()
+        print("loading {}...".format(card_url))
+        c = get_card(card_url)
+        cards.append(c)
+        print("\t...done.")
+    return {'name': setname, 'cards': cards}
