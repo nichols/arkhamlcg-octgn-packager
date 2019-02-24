@@ -6,6 +6,7 @@ import os.path
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+import arkham_data
 
 
 # If modifying these scopes, delete the file token.pickle.
@@ -45,9 +46,32 @@ def simple_row(*args):
     return row
 
 
-def row_from_card(card):
-    # TODO: actual values
-    return simple_row('')
+def row_from_side(side, number, quantity, encounter_set):
+    fields = [
+        side.get('name', ''), number, side.get('image_url', ''), 'False',
+        quantity, encounter_set
+    ]
+    fields += [side['data'].get(f, '') for f in arkham_data.side_data_fields]
+    return simple_row(*fields)
+
+
+def rows_from_card(card):
+    quantity = card.get('quantity', '')
+    encounter_set = card.get('encounter_set', '')
+
+    rows = []
+    if arkham_data.is_double_sided(card):
+        number_front = str(card['number']) + 'a'
+        rows.append(row_from_side(card['front'], number_front, quantity, encounter_set))
+
+        number_back = str(card['number']) + 'b'
+        rows.append(row_from_side(card['back'], number_back, quantity, encounter_set))
+
+    else:
+        rows.append(row_from_side(card['front'], card['number'], quantity, encounter_set))
+
+    return rows
+
 
 
 def create_set_info_sheet(service, arkhamset):
@@ -62,7 +86,8 @@ def create_set_info_sheet(service, arkhamset):
                 'startColumn': 0,
                 'rowData': [
                     simple_row('Name:', arkhamset['name']),
-                    simple_row('Number:'),
+                    simple_row('Campaign:'),
+                    simple_row('Campaign Code:'),
                     simple_row('Type:'),
                 ],
             },
@@ -74,8 +99,12 @@ def create_set_info_sheet(service, arkhamset):
 
 
 def create_cards_sheet(service, arkhamset):
-    rows = [simple_row('')]     # header
-    rows.extend([row_from_card(card) for card in arkhamset['cards']])
+    header_fields = ['Name', 'Number', 'Image URL', 'Mini', 'Quantity', 'Encounter Set']
+    header_fields += arkham_data.side_data_fields
+    rows = [simple_row(*header_fields)]
+    for card in arkhamset['cards']:
+        rows.extend(rows_from_card(card))
+
     sheet = {
         'properties': {
             'title': 'Cards',
@@ -99,7 +128,7 @@ def create_cards_sheet(service, arkhamset):
 
 def create_scenarios_sheet(service, arkhamset):
     fields = ['Scenario Number', 'Scenario Name', 'Section', 'Name',
-        'Card Number', 'Source Set ID', 'Quantity']
+        'Number', 'Source Set ID', 'Quantity']
     header = simple_row(*fields)
     sheet = {
         'properties': {
@@ -165,4 +194,5 @@ def create_spreadsheet_for_set(arkhamset):
 
 
 def read_set(url):
+    # TODO: read set from a spreadsheet
     return None

@@ -1,33 +1,5 @@
 # TODO: add module description
-
-"""
-OCTGN package schema:
-
-<OCTGN directory>
-  Decks
-    Arkham Horror - The Card Game
-      <CycleNumber> - <CycleName>
-        <ScenarioNumber> - <ScenarioName>.o8d   # or for standalones, <StandaloneScenarioName> - <Version>.o8d
-  GameDatabase
-    a6d114c7-2e2a-4896-ad8c-0330605c90bf
-      Decks
-        <CycleNumber> - <CycleName>
-          <ScenarioNumber> - <ScenarioName>.o8d
-      Sets
-        <SetGUID>
-          set.xml                               # XML file with metadata for all cards in this set
-  ImageDatabase
-    a6d114c7-2e2a-4896-ad8c-0330605c90bf
-      Sets
-        <SetGUID>
-          Cards
-            <CardGUID>.jpg
-            <CardGUID>.b.jpg    # reverse side
-            <CardGUID>.png      # PNGs are OK too
-
-Scenarios are numbered as they are in the campaign guide, e.g. '1a - Extracurricular Activity'
-
-"""
+# TODO: cardgamedb doesn't have mini cards, so figure out a way to get those
 
 import uuid
 import os
@@ -64,21 +36,28 @@ def download_img(url, dest):
         with open(dest, 'wb') as f:
             r.raw.decode_content = True
             shutil.copyfileobj(r.raw, f)
-
-
-def is_double_sided(card):
-    return ('_image_url_back' in card) or ('_text_back' in card)
+        return True
+    else:
+        return False
 
 
 def get_card_size(card):
-    # TODO: guess card size based on type and fields.
     # possible values: 'InvestigatorCard', 'HorizCard', 'EncounterCard', 'MiniCard'
-    return 'InvestigatorCard'
+    if (card['front']['Subtype'] == 'Basic Weakness'
+            or card['front']['Type'] in ('Asset', 'Skill', 'Event', 'Investigator')):
+        return 'InvestigatorCard'
+    elif card['front']['Type'] in ('Location', 'Treachery', 'Enemy'):
+        return 'EncounterCard'
+    elif card['front']['Type'] in ('Act', 'Agenda'):
+        return 'HorizCard'
+    else:
+        return ''
+
 
 
 # convert cardgamedb card text into OCTGN xml card text
 def reformat_card_text_for_octgn(text):
-    ## TODO: handle special symbols and markup for xml
+    # TODO: handle special symbols and markup for xml
     return text
 
 
@@ -98,7 +77,7 @@ def make_skill_icons_string(card):
 
 
 def make_slots_string(card):
-    ## TODO: handle number of hand slots, handle weird stuff like flamethrower
+    # TODO: handle number of hand slots, handle weird stuff like flamethrower
     pass
 
 
@@ -172,12 +151,9 @@ def create_octgn_package(arkhamset):
     for card in arkhamset['cards']:
         card['_id'] = str(uuid.uuid4())
 
-    """
-    # we're not generating .o8d file for now
     decks_path = "Decks/Arkham Horror - The Card Game/" + cycle_string
     gamedb_decks_path = "GameDatabase/" + game_id + "/" + decks_path
     scenario_o8d_path = decks_path + "/" + scenario_string + ".o8d"
-    """
 
     gamedb_sets_path = "GameDatabase/" + game_id + "/Sets/" + arkhamset['id']
     imagedb_path = "ImageDatabase/" + game_id + "/Sets/" + arkhamset['id'] + "/Cards"
@@ -195,7 +171,9 @@ def create_octgn_package(arkhamset):
     print("made directories:")
     print("\t{}\n\t{}".format(gamedb_sets_path, imagedb_path))
 
-    # create_scenario_o8d(arkhamset, scenario_o8d_path)
+    create_scenario_o8d(arkhamset, scenario_o8d_path)
+    print("created scenario .o8d files")
+    # TODO: copy scenarios into the other path too
 
     create_set_xml(arkhamset, set_xml_path)
     print("created set XML file.")

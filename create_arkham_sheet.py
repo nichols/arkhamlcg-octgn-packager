@@ -3,7 +3,7 @@
 # TODO: add module description
 
 import sys
-from arkham_json import load_set
+from arkham_data import load_set
 from cardgamedb_scraper import scrape_set_from_url
 from arkham_sheets import create_spreadsheet_for_set
 
