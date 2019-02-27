@@ -42,9 +42,9 @@ side_fields = [     # type                  cardgamedb?
 
 
 scenario_fields = [ # type                  cardgamedb?
-  'name',
   'campaign',
   'number',
+  'name',
   'agendas'         # [scenario_card]
   'act',            # [scenario_card]
   'location',       # [scenario_card]

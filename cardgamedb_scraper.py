@@ -50,24 +50,29 @@ def get_card(url):
 
     for f in fields:
         if not f.has_attr('class'):
-            m = re.match('([^:]+):\s([^:]*)', f.text.strip())
+            m = re.match('([^:]+):\s*([^:<]*)\s*)', f.text)
             if m:
                 field, value = m.groups()
+                value = value.strip()
                 if field == 'Number':
+                    if re.match('^\d+[ab]$'):   # remove a/b from end of number if it's there
+                        value = value[:-1]
                     card['number'] = value
                 elif field == 'Quantity':
                     card['quantity'] = value
                 elif field == 'Encounter Set':
                     card['encounter_set'] = value
+                elif field == 'Clue Threshold':
+                    card['front']['clues'] = value
                 elif field == 'Illustrator':    # we don't need this field
                     continue
-                else:   # assume this is a normal field that goes in data dict
+                else:   # assume this is a normal field that goes in side data
                     card['front']['data'][field] = value
             elif f.text.strip() == "skills":
                 continue
             else:
                 error_msg = 'While scraping url {}, found div tag with unexpected text {}'.format(url, f.text.strip())
-                print(error_msg, file=sys.stderr)
+                raise SetScrapingError(error_msg)
 
         elif 'traits' in f['class']:
             card['front']['data']['Traits'] = f.text
@@ -77,14 +82,15 @@ def get_card(url):
             if 'Text' not in card['front']['data']:
                 card['front']['data']['Text'] = f.text
             elif 'back' in card:    # this must be the back side text
-                card['back']['data']['text'] = f.text
-            elif f.text.strip():   # found a nonempty second text, but there's only one image
-                raise SetScrapingError(url)
-        elif 'skills' in f['class'] or 'stats' in f['class']:
+                card['back']['data']['Text'] = f.text
+            elif f.text.strip():
+                error_msg = 'While scraping url {}, found nonempty second text tag, but only one image'.format(url)
+                raise SetScrapingError(error_msg)
+        elif 'skills' in f['class'] or 'stats' in f['class']:   # don't need these
             continue
         else:
             error_msg = 'While scraping url {}, found div tag with unexpected class {}'.format(url, f['class'])
-            print(error_msg, file=sys.stderr)
+            raise SetScrapingError(error_msg)
 
     return card
 
