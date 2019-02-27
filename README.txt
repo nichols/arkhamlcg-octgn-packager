@@ -6,12 +6,12 @@ OCTGN package schema:
 <OCTGN directory>
   Decks
     Arkham Horror - The Card Game
-      <CycleNumber> - <CycleName>
+      <CampaignCode> - <CampaignName>
         <ScenarioNumber> - <ScenarioName>.o8d   # or for standalones, <StandaloneScenarioName> - <Version>.o8d
   GameDatabase
     a6d114c7-2e2a-4896-ad8c-0330605c90bf
       Decks
-        <CycleNumber> - <CycleName>
+        <CampaignCode> - <CampaignName>
           <ScenarioNumber> - <ScenarioName>.o8d
       Sets
         <SetGUID>

@@ -5,7 +5,7 @@
 import sys
 import re
 import requests
-import arkham_data
+import arkham_common
 from bs4 import BeautifulSoup
 
 suffix_1000_per_page = '?per_page=1000'
@@ -17,6 +17,17 @@ class SetScrapingError(Exception):
     """Base class for exceptions in this module."""
     pass
 
+
+cardgamedb_symbol_map = {
+    '\udb88\udd83': '[Investigators]',
+}
+
+
+# replace weird encoding from cardgamedb with human-readable symbols
+def to_sheets_format(text):
+    for k, v in cardgamedb_symbol_map.items():
+        text.replace(k, v)
+    return text
 
 
 
@@ -55,19 +66,18 @@ def get_card(url):
                 field, value = m.groups()
                 value = value.strip()
                 if field == 'Number':
-                    if re.match('^\d+[ab]$'):   # remove a/b from end of number if it's there
-                        value = value[:-1]
+                    value, _ = arkham_common.get_number_and_face(value)
                     card['number'] = value
                 elif field == 'Quantity':
                     card['quantity'] = value
                 elif field == 'Encounter Set':
                     card['encounter_set'] = value
                 elif field == 'Clue Threshold':
-                    card['front']['clues'] = value
+                    card['front']['clues'] = to_sheets_format(value)
                 elif field == 'Illustrator':    # we don't need this field
                     continue
                 else:   # assume this is a normal field that goes in side data
-                    card['front']['data'][field] = value
+                    card['front']['data'][field] = to_sheets_format(value)
             elif f.text.strip() == "skills":
                 continue
             else:
@@ -80,9 +90,9 @@ def get_card(url):
             card['front']['data']['Flavor Text'] = f.text
         elif 'gameText' in f['class']:
             if 'Text' not in card['front']['data']:
-                card['front']['data']['Text'] = f.text
+                card['front']['data']['Text'] = to_sheets_format(f.text)
             elif 'back' in card:    # this must be the back side text
-                card['back']['data']['Text'] = f.text
+                card['back']['data']['Text'] = to_sheets_format(f.text)
             elif f.text.strip():
                 error_msg = 'While scraping url {}, found nonempty second text tag, but only one image'.format(url)
                 raise SetScrapingError(error_msg)
@@ -91,6 +101,11 @@ def get_card(url):
         else:
             error_msg = 'While scraping url {}, found div tag with unexpected class {}'.format(url, f['class'])
             raise SetScrapingError(error_msg)
+
+    card_number_check = card.get('number', '')
+    if not re.match('^\d+$', card_number_check):
+        error_msg = 'Bad or missing card number {} at url {}'.format(card_number_check, url)
+        raise SetScrapingError(error_msg)
 
     return card
 
