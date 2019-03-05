@@ -1,6 +1,12 @@
 # Module for reading/writing Arkham Horror LCG set data to/from a Google Sheets
 # spreadsheet
 
+# TODO: update template with more help info for scenario sheet and link to
+# example
+
+# TODO: scenario data object shouldn't contain unique IDs of external cards.
+# just store the name of the source.
+
 import re
 import uuid
 import pickle
@@ -50,17 +56,19 @@ def row_from_side(card, face):
     if face == 'front':
         number += 'a'
     elif face == 'back':
-        number += b
+        number += 'b'
+    else:
+        face = 'front'
     row = [ card[face].get('name', ''), number, card['id'], card[face]['image_url'],
             card.get('quantity', ''), card.get('encounter_set', '')]
-    row += [card[face]['data'].get(f, '') for f in arkham_data.side_data_fields]
+    row += [card[face]['data'].get(f, '') for f in arkham_common.side_data_fields]
     return row
 
 
 def fill_set_info_sheet(service, spreadsheet_id, arkhamset):
     range = 'Set!B2:B6'
     value_input_option = 'USER_ENTERED'
-    column = [arkhamset['id'], arkhamset['name'], '', '', '']
+    column = [arkhamset.get('id', ''), arkhamset['name'], '']
     body = {
         'range': range,
         'values': [column],
@@ -81,10 +89,10 @@ def fill_cards_sheet(service, spreadsheet_id, arkhamset):
             card['id'] = str(uuid.uuid4())
 
         if arkham_common.is_double_sided(card):
-            rows.extend([   row_from_side(card, 'front'),
-                            row_from_side(card, 'back')     ])
+            new_rows = [row_from_side(card, 'front'), row_from_side(card, 'back')]
         else:
-            rows.append(row_from_side(card, ''))
+            new_rows = [row_from_side(card, '')]
+        rows.extend(new_rows)
 
     range = "Cards!A2:AD{}".format(1 + len(rows))
     value_input_option = 'USER_ENTERED'
@@ -99,30 +107,76 @@ def fill_cards_sheet(service, spreadsheet_id, arkhamset):
     # TODO: process result to make sure it worked
 
 
+def fill_scenario_sheet(service, spreadsheet_id, arkhamset):
+    section_names = ['Act', 'Agenda', 'Location', 'Encounter', 'Setup']
+    sections = {s: [] for s in section_names}
+
+    for card in arkhamset['cards']:
+        type = card['front']['data'].get('Type', '')
+        if type in ['Act', 'Agenda', 'Location']:
+            sections[type].append(card)
+        elif type in ('Treachery', 'Enemy'):
+            sections['Encounter'].append(card)
+        elif (  type in ('Scenario', 'Story')
+                or card['front']['data'].get('Class', '')
+                not in ('Guardian', 'Seeker', 'Rogue', 'Mystic', 'Survivor', 'Neutral')):
+            sections['Setup'].append(card)
+
+    rows = []
+    for s in section_names:
+        if sections[s]:
+            new_rows = [['', card['id'], card['front']['name'], card['number']] for card in sections[s]]
+            new_rows[0][0] = s
+            rows.extend(new_rows)
+
+    range = "Scenarios!E2:H{}".format(1 + len(rows))
+    value_input_option = 'USER_ENTERED'
+    body = {
+        'range': range,
+        'values': rows,
+    }
+    result = service.spreadsheets().values().update(
+        spreadsheetId=spreadsheet_id, range=range,
+        valueInputOption=value_input_option, body=body).execute()
+
+    # TODO: process result to make sure it worked
+
+
+
 def create_spreadsheet_for_set(arkhamset):
     if 'id' not in arkhamset:
-        arkhamset['id'] =uuid.uuid4()
+        arkhamset['id'] = str(uuid.uuid4())
 
+    print('Starting Google Sheets API Service... ', end='')
     service = get_sheets_api_service()
+    print('Done.')
 
+    print('Creating template sheet... ', end='')
     with open(sheet_template_filename, 'rb') as sheet_template_file:
         spreadsheet = pickle.load(sheet_template_file)
 
     spreadsheet['properties']['title'] = 'Arkham Horror LCG: {}'.format(arkhamset['name'])
     spreadsheet = service.spreadsheets().create(body=spreadsheet).execute()
     spreadsheet_id = spreadsheet.get('spreadsheetId')
+    print('Done, ID = {}.'.format(spreadsheet_id))
 
+    print('Filling set info sheet... ', end='')
     fill_set_info_sheet(service, spreadsheet_id, arkhamset)
+    print('Done.')
+
+    print('Filling cards sheet... ', end='')
     fill_cards_sheet(service, spreadsheet_id, arkhamset)
+    print('Done.')
+
+    print('Filling scenario sheet... ', end='')
+    fill_scenario_sheet(service, spreadsheet_id, arkhamset)
+    print('Done.')
 
     return spreadsheet.get('spreadsheetUrl')
 
 
 def get_string_from_cell(cell):
-    if 'userEnteredValue' not in cell or 'stringValue' not in cell['userEnteredValue']:
-        return ''
-    else:
-        return cell['userEnteredValue']['stringValue']
+    return cell.get('userEnteredValue', {}).get('stringValue', '')
 
 
 def read_row(row):
@@ -134,15 +188,11 @@ def read_set_info_sheet(sheet):
 
     try:
         column = [get_string_from_cell(row['values'][1]) for row in rows]
-
-        arkhamset = {
-            'id': column[0],
-            'name': column[1],
-            'type': column[2],
-            'campaign': column[3],
-            'campaign_code': column[4],
-        }
+        arkhamset = dict(zip(['id', 'name', 'type'], column))
     except IndexError:
+        raise SheetDataError
+
+    if not arkhamset['name']:
         raise SheetDataError
 
     return arkhamset
@@ -163,7 +213,7 @@ def read_cards_sheet(sheet):
             error_msg = "couldn't read number {}".format(number)
             raise SheetDataError(errormsg)
 
-        side_data = dict(zip(arkham_data.side_data_fields, fields))
+        side_data = dict(zip(arkham_common.side_data_fields, fields))
         side = {
             'name': name, 'image_url': image_url, 'data': side_data,
         }
@@ -192,56 +242,37 @@ def read_cards_sheet(sheet):
     return cards
 
 
-# look up the unique ID of a card from an external set based on its name or number
-# TODO:
-def lookup_card_id_external(set_id, card_name, card_number):
-    return ''
-
-
-# look up the unique ID of a card in this set based on its number
-# TODO:
-def lookup_card_id_internal(arkhamset, card_name, card_number):
-    return ''
-
-
-
 def read_scenarios_sheet(sheet):
     rows = map(read_row, sheet['data'][0]['rowData'][1:])
 
     scenario_dict = {}
-    last = [''] * 3
+    last = [''] * 5
 
     for row in rows:
         try:
-            for i in range(3):
+            for i in range(5):
                 row[i] = row[i] or last[i]
-            last = row[:3]
+            last = row[:5]
 
-            scenario_name = row[2]
-            section = row[3]
-            card_name, card_number, card_id, set_id, quantity = row[4:9]
+            scenario_name = row[4]
+            section = row[5]
+
+            card_fields = dict(zip(
+                ['id', 'name', 'card_number', 'quantity', 'source'], row[6:11]
+            ))
+            if not card_fields['quantity'] and section in ('Act', 'Agenda', 'Location'):
+                card_fields['quantity'] = 1
+            scenario = dict(zip(
+                ['campaign_code', 'campaign_name', 'scenario_number', 'scenario_name', section],
+                row[:5] + [[card_fields]]
+            ))
         except IndexError:
             raise SheetDataError
-
-        quantity = quantity or 1
-        if not set_id:
-            card_id = lookup_card_id_internal(arkhamset, card_name, card_number)
-        elif not card_id:
-            card_id = lookup_card_id_external(set_id, card_name, card_number)
-
-        card_fields = dict(zip(
-            ['name', 'card_number', 'id', 'set_id', 'quantity'],
-            [card_name, card_number, card_id, set_id, quantity]
-        ))
-        scenario = dict(zip(
-            ['campaign', 'scenario_number', 'scenario_name', section],
-            row[:3] + [[card_fields]]
-        ))
 
         # merge this card into the existing list of scenarios
         if scenario_name not in scenario_dict:
             scenario_dict[scenario_name] = scenario
-        elif section not in scenarios[scenario_name]:
+        elif section not in scenario_dict[scenario_name]:
             scenario_dict[scenario_name][section] = scenario[section]
         else:
             scenario_dict[scenario_name][section].extend(scenario[section])
@@ -271,3 +302,7 @@ def read_set(url):
     arkhamset['scenarios'] = read_scenarios_sheet(spreadsheet['sheets'][2])
 
     return arkhamset
+
+
+if __name__ == '__main__':
+    pass

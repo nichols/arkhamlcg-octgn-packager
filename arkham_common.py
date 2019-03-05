@@ -1,5 +1,6 @@
 # TODO: add module description
 
+import re
 import json
 
 """
@@ -17,8 +18,6 @@ set_fields = [      # types                 cardgamedb?
   'id',
   'name',           #                       yes
   'type',           # set_type_enum
-  'campaign',
-  'campaign_code',
   'cards',          # [card]
   'scenarios',      # [scenario]
 ]
@@ -41,11 +40,11 @@ side_fields = [     # type                  cardgamedb?
 
 
 scenario_fields = [ # type                  cardgamedb?
+    'number',
     'name',
-    'scenario_code',
     'campaign',
-    'campaign_code'
-    'agendas'         # [scenario_card]
+    'campaign_code',
+    'agendas',        # [scenario_card]
     'act',            # [scenario_card]
     'location',       # [scenario_card]
     'encounter',      # [scenario_card]
@@ -53,11 +52,11 @@ scenario_fields = [ # type                  cardgamedb?
 ]
 
 scenario_card_fields = [
+  'id',
   'name',
   'number',
-  'id'
-  'set_id',
   'quantity',
+  'source',
 ]
 """
 
@@ -139,3 +138,8 @@ def create_set_file(arkhamset, path=None):
     with open(json_file_path, 'w') as json_file:
         json.dump(arkhamset, json_file)
     return json_file_path
+
+
+
+if __name__ == '__main__':
+    pass

@@ -61,7 +61,7 @@ def get_card(url):
 
     for f in fields:
         if not f.has_attr('class'):
-            m = re.match('([^:]+):\s*([^:<]*)\s*)', f.text)
+            m = re.match('([^:]+):\s*([^:<]*)', f.text.strip())
             if m:
                 field, value = m.groups()
                 value = value.strip()
@@ -132,8 +132,7 @@ def scrape_set_from_url(url):
 
 def main():
     if len(sys.argv) < 2:
-        print("args: cardgamedb_url")
-        return
+        raise ValueError("Command line argument needed: cardgamedb URL of set")
 
     url = sys.argv[1]
     arkhamset = scrape_set_from_url(url)

@@ -1,5 +1,5 @@
 # TODO: add module description
-# TODO: cardgamedb doesn't have mini cards, so figure out a way to get those
+# TODO: add minicard automatically whenever we add an investigator card
 
 import uuid
 import os
@@ -11,6 +11,14 @@ from urllib.parse import urlparse
 
 game_id = 'a6d114c7-2e2a-4896-ad8c-0330605c90bf'
 
+campaign_ids = {
+    'core set':             '0000f984-d06f-44cb-bf1c-d66a620acad8',
+    'the dunwich legacy':   'dfa9b3bf-58f2-4611-ae55-e25562726d62',
+    'the path to carcosa':  'ca208949-a47c-4454-9f74-f3ca630c7ed7',
+    'the forgotten age':    '29e9861d-a9bb-4ac3-aced-a6feadde0f6f',
+}
+
+
 # octgn encoding of the five skill icons
 skill_icon_symbols = {
     'Willpower': 'ά',
@@ -20,29 +28,51 @@ skill_icon_symbols = {
     'Wild': 'ΰ',
 }
 
-# TODO: fill in missing symbols
- octgn_symbol_map = {
+octgn_symbol_map = {
     '[Willpower]': 'ά',
     '[Intellect]': 'έ',
     '[Combat]': 'ή',
     '[Agility]': 'ί',
     '[Wild]': 'ΰ',
     '[Action]': 'η',
-    '[Reaction]': '',
-    '[Free]': '',
-    '[Guardian]': '',
-    '[Seeker]': '',
-    '[Rogue]': '',
-    '[Mystic]': '',
-    '[Survivor]': '',
-    '[Skull]': '',
-    '[Cultist]': '',
-    '[Tablet]': '',
-    '[Elder Thing]': '',
-    '[Auto-fail]': '',
-    '[Elder Sign]': '',
+    '[Reaction]': 'ι',
+    '[Free]': 'θ',
+    '[Guardian]': 'κ',
+    '[Seeker]': 'λ',
+    '[Rogue]': 'ν',
+    '[Mystic]': 'μ',
+    '[Survivor]': 'ξ',
+    '[Skull]': 'α',
+    '[Cultist]': 'β',
+    '[Tablet]': 'γ',
+    '[Elder Thing]': 'δ',
+    '[Auto-fail]': 'ζ',
+    '[Elder Sign]': 'ε',
     '[Investigators]': 'π',
 }
+
+
+class SetDataError(Exception):
+    """Base class for exceptions in this module."""
+    pass
+
+
+# in-place prettyprint formatter
+# from http://effbot.org/zone/element-lib.htm#prettyprint
+def indent(elem, level=0):
+    i = "\n" + level*"  "
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + "  "
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+        for elem in elem:
+            indent(elem, level+1)
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
 
 
 def get_extension_from_url(url):
@@ -77,18 +107,18 @@ def get_card_size(card):
         return ''
 
 
-# convert cardgamedb card text into OCTGN xml card text
-def to_octgn_format(text):
+# convert arkhamset card text into OCTGN xml card text
+def format_text_for_octgn(text):
     # TODO: handle any weird XML stuff?
     for k, v in octgn_symbol_map.items():
         text = text.replace(k, v)
     return text
 
 
-def reformat_side_fields_for_octgn(side):
+def format_side_data_fields_for_octgn(side):
     for field in arkham_common.side_data_fields_with_possible_symbols:
         if field in side['data']:
-            side['data'][field] = to_octgn_format(side['data'][field])
+            side['data'][field] = format_text_for_octgn(side['data'][field])
 
 
 # convert skill icon info in cardgamedb format into OCTGN format (single string)
@@ -96,14 +126,14 @@ def reformat_side_fields_for_octgn(side):
 def make_skill_icons_string_for_side(side):
     icons_string = ''
     for skill, symbol in skill_icon_symbols.items():
-        num_icons = int(side.get(skill, 0))
+        num_icons = int(side['data'].get(skill, 0))
         icons_string += (symbol * num_icons)
-    side['Skill Icons'] = icons_string
-    del side['Willpower']
-    del side['Intellect']
-    del side['Combat']
-    del side['Agility']
-    del side['Wild']
+        try:
+            del side['data'][skill]
+        except KeyError:
+            pass
+
+    side['data']['Skill Icons'] = icons_string
 
 
 def make_slot_strings_for_side(side):
@@ -111,18 +141,18 @@ def make_slot_strings_for_side(side):
     pass
 
 
-def reformat_side_for_octgn(side):
+def format_side_for_octgn(side):
     if side['data'].get('Type', '') in ['Asset', 'Skill', 'Event']:
         make_skill_icons_string_for_side(side)
     if side['data'].get('Type', '') == 'Asset':
         make_slot_strings_for_side(side)
-    reformat_side_fields_for_octgn(side)
+    format_side_data_fields_for_octgn(side)
 
 
-def reformat_card_for_octgn(card):
-    reformat_side_for_octgn(card['front'])
+def format_card_for_octgn(card):
+    format_side_for_octgn(card['front'])
     if arkham_common.is_double_sided(card):
-        reformat_side_for_octgn(card['back'])
+        format_side_for_octgn(card['back'])
 
 
 def card_to_xml(card):
@@ -132,13 +162,11 @@ def card_to_xml(card):
     front_attrib = {'id': card['id'], 'name': card['front']['name'], 'size': size}
     front_root = ET.Element('card', front_attrib)
 
-    make_skill_icons_strings_for_card(card)
-    make_slot_strings_for_card(card)
-    reformat_card_fields_for_octgn(card)
+    format_card_for_octgn(card)
 
     ET.subElement(front_root, 'property', {'name': 'Card Number', 'value': card['number']})
-    ET.subElement(front_root, 'property', {'name': 'Quantity', 'value': card['Quantity']})
-    ET.subElement(front_root, 'property', {'name': 'Encounter Set', 'value': card['Encounter Set']})
+    ET.subElement(front_root, 'property', {'name': 'Quantity', 'value': card['quantity']})
+    ET.subElement(front_root, 'property', {'name': 'Encounter Set', 'value': card['encounter_set']})
     for k, v in card['front']['data'].items():
         ET.SubElement(front_root, 'property', {'name': k, 'value': v})
 
@@ -153,14 +181,9 @@ def card_to_xml(card):
 
 
 # make set.xml file containing metadata on all cards
-def create_set_xml(arkhamset, path):
-    path += '/set.xml'
-    try:
-        os.makedirs(path)
-    except FileExistsError:
-        pass
+def create_set_xml(arkhamset):
 
-    # TODO: figure out XML header? Or generate it with options of ET.write()?
+    # TODO: figure out XML header? Or generate it with args to ET.write()?
     set_attrib = {
         'xmlns:noNamespaceSchemaLocation': 'CardSet.xsd',   # is this right?
         'name': arkhamset['name'],
@@ -175,10 +198,8 @@ def create_set_xml(arkhamset, path):
         cards.append(card_to_xml(card))
 
     # TODO: handle exceptions or whatever
-    # TODO: make the xml file pretty (new line for each tag, indented, etc)
-    xml_tree = ET.ElementTree(set_root)
-    xml_tree.write(path, encoding='UTF-8', xml_declaration=True)
-    return path
+    indent(set_root)
+    return set_root
 
 
 # download all card images, set filename = GUID, put in correct directory
@@ -200,69 +221,161 @@ def create_card_image_files(arkhamset, path):
     # TODO: handle exceptions or whatever
 
 
-def create_scenario_o8d_file(scenario, path):
-    try:
-        os.makedirs(path)
-    except FileExistsError:
-        pass
+def update_scenario_card_from_xml_tag(scenario_card, tag):
+    scenario_card['id'] = scenario_card.get('id', '') or tag.attrib['id']
+    scenario_card['name'] = scenario_card.get('name', '') or tag.attrib['name']
+    scenario_card['number'] = scenario_card.get('number', '') or tag.find("./property[@name='Card Number']").attrib['value']
+    scenario_card['quantity'] = scenario_card.get('quantity', '') or tag.find("./property[@name='Quantity']").attrib['value']
 
-    path += "/{} - {}.o8d".format(scenario['scenario_code'], scenario['name'])
 
-    deck_attrib = {'game': game_id, sleeveid: '0'}
+# Get a list of scenario_card objects corresponding to a given encounter set
+# We don't care about recording the source of these cards because presumably
+# the caller must already know it.
+#       name: name of encounter set
+#       root: root of xml tree describing the set which contains the given encounter set
+def get_encounter_set(name, root):
+    XPath_query_string = "./cards/card/property[@name='Encounter Set'][@value='{}']/..".format(name)
+    cards = [create_scenario_card_from_xml_tag(tag) for tag in root.findall(XPath_query_string)]
+    return cards
+
+
+def create_xml_tag_from_scenario_card(card):
+    card_attrib = {'qty': card['quantity'], 'id': card['id'], }
+    card_tag = ET.Element('card', card_attrib)
+    card_tag.text = card['name']
+    return card_tag
+
+
+# Given a card with possibly incomplete information, look up the rest if possible
+#   require source set id and either card id or both card name and card number
+def validate_card_fields(card, xml_root):
+    if card['id'] and card['name'] and card['number'] and card['quantity']:
+        return
+    else:
+        if card['id']: # find card based on id
+            tag = xml_root.find("./cards/card[@id='{}']".format(card['id']))
+        elif card['name'] and card['number']: # find card based on name and number
+            tag = xml_root.find("./cards/card/property[@name='{}']/..".format(card['name']))
+            # TODO: also check for number
+        else:
+            error_msg = "Badly formed card or encounter set in scenario {}:\n{}".format(scenario['name'], card)
+            raise SetDataError(error_msg)
+        update_scenario_card_from_xml_tag(card, tag)
+
+
+def validate_source_field(card, default):
+    if 'source' not in card or not card['source']:
+        card['source'] = default
+    else:
+        card['source'] = card['source'].lower().strip()
+        if card['source'] in ('core set', 'core', 'coreset'):
+            card['source'] = campaign_ids['core set']
+        elif card['source'] == 'campaign':
+            try:
+                card['source'] = campaign_ids[scenario['campaign_name'].lower()]
+            except KeyError:
+                error_msg = 'Campaign {} is not listed in known campaigns.'.format(scenario['campaign_name'])
+                raise SetDataError(error_msg)
+        elif not re.match('^[0-9a-f]{8}(?:-?[0-9a-f]{4}){3}-?[0-9a-z]{12}$', card['source']):
+            error_msg = 'Invalid source field {}. Must be a UUID, "Campaign", or "Core Set"'.format(card['source'])
+            raise SetDataError(error_msg)
+
+
+# TODO: lookup card IDs for existing sets
+# TODO: handle encounter sets
+def create_scenario_xml(scenario, set_id):
+    deck_attrib = {'game': game_id, 'sleeveid': '0'}
     deck_root = ET.Element('deck', deck_attrib)
+
+    # load empty sections
     for section in ['Investigator', 'Special', 'Asset', 'Event', 'Skill',
                     'Weakness', 'Sideboard', 'Basic Weaknesses']:
         ET.SubElement(deck_root, 'section', {'name': section, 'shared': 'False'})
-
-    for section in ['Agenda', 'Act', 'Encounter', 'Location', 'Setup']:
-        section_root = ET.SubElement(deck_root, 'section', {'name': section, 'shared': 'True'})
-        for card in scenario.get(section, []):
-            card_attrib = {'qty': card['quantity'], 'id': card['id'], }
-            card_tag = ET.SubElement(section_root, 'card', {})
-            card_tag.text = card['front']['name']
-
     for section in ['Special', 'Second Special', 'Chaos Bag']:
         ET.SubElement(deck_root, 'section', {'name': section, 'shared': 'True'})
 
-    notes = ET.SubElement(deck_root, 'notes')
-    notes.text = "<![CDATA[]]>"
+    # add SubElements for the interesting sections and sort cards from those sections by source
+    cards_by_source = {}
+    section_roots = {}
+    for section in ['Agenda', 'Act', 'Encounter', 'Location', 'Setup']:
+        section_roots[section] = ET.SubElement(deck_root, 'section', {'name': section, 'shared': 'True'})
+        section_cards = scenario.get(section, [])
+        for card in scenario_cards:
+            validate_source_field(card, set_id)
+            cards_by_source[card['source']] = cards_by_source.get(card['source'], [])
+            cards_by_source[card['source']].append(card)
 
-    xml_tree = ET.ElementTree(deck_root)
-    xml_tree.write(path, encoding='UTF-8', xml_declaration=True)
-    return path
+    for source in cards_by_source:
+        path = "GameDatabase/{}/Sets/{}/set.xml".format(game_id, source)
+        source_root = ET.parse(path).getroot()
+
+        cards = cards_by_source[source]
+        while cards:
+            card = cards.pop()
+            if card['name'] and not card['id'] and not card['number'] and not card['quantity']:
+                # assume this is an encounter set
+                encounter_set = get_encounter_set(card['name'], source_root)
+                cards.extend(encounter_set)
+            else:
+                validate_card_fields(card, source_root)
+                section_roots[card['section']] = section_roots.get(card['section'], [])
+                section_roots[card['section']].append(create_xml_tag_from_scenario_card(card))
+
+
+    notes = ET.SubElement(deck_root, 'notes')
+    notes.text = "<![CDATA[]]>"                 # is this right?
+
+    indent(deck_root)
+    return deck_root
 
 
 def create_octgn_package(arkhamset):
     if 'id' not in arkhamset or not arkhamset['id']:
         arkhamset['id'] = uuid.uuid4()
 
-    # TODO: raise exception if campaign string isn't well-formed
-    campaign_string = arkhamset['campaign_code'] + ' - ' + arkhamset['campaign']
-    decks_path = "Decks/Arkham Horror - The Card Game/" + campaign_string
-    gamedb_decks_path = "GameDatabase/" + game_id + "/Decks/" + campaign_string
+    # create xml file containing all cards in set
+    set_dir = "GameDatabase/{}/Sets/{}/".format(game_id, arkhamset['id'])
+    try:
+        os.makedirs(path)
+    except FileExistsError:
+        pass
+    set_path = set_dir + 'set.xml'
+    set_root = create_set_xml(arkhamset)
+    xml_tree = ET.ElementTree(set_root)
+    xml_tree.write(set_path, encoding='UTF-8', xml_declaration=True)
+    print("created set XML file {}.".format(set_path))
 
-    gamedb_sets_path = "GameDatabase/" + game_id + "/Sets/" + arkhamset['id']
+    # create xml file for each scenario with cards needed for play
+    gamedb_decks_path = "GameDatabase/{}/Decks/".format(game_id)
+    for scenario in arkhamset.get('scenarios', []):
+        campaign_path = "{}/{} - {}".format(
+                gamedb_decks_path, scenario['campaign_code'], scenario['campaign'])
+        try:
+            os.makedirs(campaign_path)
+        except FileExistsError:
+            pass
+        scenario_string = "{} - {}.o8d".format(scenario['number'], scenario['name'])
+        scenario_file_path = "{}/{}.o8d".format(campaign_path, scenario_string)
 
-    imagedb_path = "ImageDatabase/" + game_id + "/Sets/" + arkhamset['id'] + "/Cards"
+        scenario_root = create_scenario_xml(scenario, arkhamset['id'])
+        scenario_xml_tree = ET.ElementTree(scenario_root)
+        scenario_xml_tree.write(scenario_file_path, encoding='UTF-8', xml_declaration=True)
+        print("created scenario file {}.".format(scenario_file_path))
 
-    path = create_set_xml(arkhamset, gamedb_sets_path)
-    print("created set XML file {}.".format(path))
+    # create image files for cards
+    imagedb_path = "ImageDatabase/{}/Sets/{}/Cards/".format(
+            game_id, arkhamset['id'])
+    try:
+        os.makedirs(imagedb_path)
+    except FileExistsError:
+        pass
     num = create_card_image_files(arkhamset, imagedb_path)
     print("created {} card image files in {}.".format(num, imagedb_path))
 
-    for scenario in arkhamset['scenarios']:
-        path = create_scenario_o8d_file(scenario, decks_path)
-        print("created scenario file {}.".format(path))
-        try:
-            os.makedirs(decks_path)
-        except FileExistsError:
-            pass
-        _, filename = os.path.split(path)
-        new_path = decks_path + "/" + filename
-        shutil.copy(path, new_path)
-        print("copied to {}.".format(new_path))
-
     # TODO: zip directory tree at the end?
     # TODO: return path to created directory or archive
-    path = ''
-    return path
+    return None
+
+
+if __name__ == '__main__':
+    pass
