@@ -83,7 +83,7 @@ def fill_set_info_sheet(service, spreadsheet_id, arkhamset):
 
 def fill_cards_sheet(service, spreadsheet_id, arkhamset):
     rows = []
-    arkhamset['cards'].sort(key=lambda c: c.get('number', '999'))
+    arkhamset['cards'].sort(key=arkham_common.card_number_sort_key)
     for card in arkhamset['cards']:
         if 'id' not in card or not card['id']:
             card['id'] = str(uuid.uuid4())
@@ -108,7 +108,8 @@ def fill_cards_sheet(service, spreadsheet_id, arkhamset):
 
 
 def fill_scenario_sheet(service, spreadsheet_id, arkhamset):
-    section_names = ['Act', 'Agenda', 'Location', 'Encounter', 'Setup']
+    section_names = ['Act', 'Agenda', 'Location', 'Encounter', 'Setup',
+                    'Special', 'Second Special']
     sections = {s: [] for s in section_names}
 
     for card in arkhamset['cards']:
@@ -125,11 +126,15 @@ def fill_scenario_sheet(service, spreadsheet_id, arkhamset):
     rows = []
     for s in section_names:
         if sections[s]:
-            new_rows = [['', card['id'], card['front']['name'], card['number']] for card in sections[s]]
+            new_rows = [
+                ['', card['id'], card['front']['name'], card['number'],
+                        card.get('encounter_set', '')]
+                for card in sections[s]
+            ]
             new_rows[0][0] = s
             rows.extend(new_rows)
 
-    range = "Scenarios!E2:H{}".format(1 + len(rows))
+    range = "Scenarios!E2:I{}".format(1 + len(rows))
     value_input_option = 'USER_ENTERED'
     body = {
         'range': range,
@@ -184,7 +189,7 @@ def read_row(row):
 
 
 def read_set_info_sheet(sheet):
-    rows = sheet['data'][0]['rowData']
+    rows = sheet['data'][0]['rowData'][1:]
 
     try:
         column = [get_string_from_cell(row['values'][1]) for row in rows]
@@ -206,12 +211,14 @@ def read_cards_sheet(sheet):
 
     for row in rows:
         name, number, id, image_url, quantity, encounter_set, *fields = read_row(row)
+        if not name or not number:
+            continue
 
         try:
             number, face = arkham_common.get_number_and_face(number)
         except ValueError:
             error_msg = "couldn't read number {}".format(number)
-            raise SheetDataError(errormsg)
+            raise SheetDataError(error_msg)
 
         side_data = dict(zip(arkham_common.side_data_fields, fields))
         side = {
@@ -249,35 +256,37 @@ def read_scenarios_sheet(sheet):
     last = [''] * 5
 
     for row in rows:
+        if not any(row):
+            continue
         try:
             for i in range(5):
                 row[i] = row[i] or last[i]
             last = row[:5]
 
-            scenario_name = row[4]
-            section = row[5]
+            name = row[3]
+            section = row[4]
 
             card_fields = dict(zip(
-                ['id', 'name', 'card_number', 'quantity', 'source'], row[6:11]
+                ['id', 'name', 'card_number', 'encounter_set', 'quantity', 'source'], row[5:11]
             ))
             if not card_fields['quantity'] and section in ('Act', 'Agenda', 'Location'):
-                card_fields['quantity'] = 1
+                card_fields['quantity'] = '1'
             scenario = dict(zip(
-                ['campaign_code', 'campaign_name', 'scenario_number', 'scenario_name', section],
-                row[:5] + [[card_fields]]
+                ['campaign_code', 'campaign', 'number', 'name', section],
+                row[:4] + [[card_fields]]
             ))
         except IndexError:
             raise SheetDataError
 
         # merge this card into the existing list of scenarios
-        if scenario_name not in scenario_dict:
-            scenario_dict[scenario_name] = scenario
-        elif section not in scenario_dict[scenario_name]:
-            scenario_dict[scenario_name][section] = scenario[section]
+        if name not in scenario_dict:
+            scenario_dict[name] = scenario
+        elif section not in scenario_dict[name]:
+            scenario_dict[name][section] = scenario[section]
         else:
-            scenario_dict[scenario_name][section].extend(scenario[section])
+            scenario_dict[name][section].extend(scenario[section])
 
-    scenarios = scenario_dict.values()
+    scenarios = list(scenario_dict.values())
     return scenarios
 
 

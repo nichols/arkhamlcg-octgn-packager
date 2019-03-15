@@ -55,6 +55,7 @@ scenario_card_fields = [
   'id',
   'name',
   'number',
+  'encounter_set',
   'quantity',
   'source',
 ]
@@ -67,7 +68,6 @@ side_data_fields = [
   'Subtype',
   'Traits',
   'Text',
-  'Flavor Text',
   'Health',         # Health for investigators, assets, and enemies
   'Sanity',
   'Class',          # Faction for player cards, "Mythos" for scenario cards
@@ -124,6 +124,13 @@ def get_number_and_face(number):
         face = ''
 
     return number, face
+
+
+# We want to sort first by number and then by a/b face indicator. It's awkward.
+def card_number_sort_key(card):
+    number, face = get_number_and_face(card.get(number, '999'))
+    face = ord(face) if face else 0
+    return 100*int(number) + face
 
 
 def load_set(json_file_path):

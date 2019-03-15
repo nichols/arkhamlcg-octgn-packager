@@ -3,3 +3,4 @@ Sets/*
 *.json
 token.pickle
 __pycache__
+*.zip

@@ -1,5 +1,15 @@
 
 # TODO: better logging and error messages
+# TODO: detect scenarios by looking at encounter sets which contain acts/agendas
+# TODO: split off scenario sheet population as a separate script so we can run it
+#       after the cards sheet has been completely filled in
+# TODO: write test suite
+# TODO: add mini cards for investigators
+# TODO: documentation: in scenarios sheet don't try to add an encounter set associated with a specific scenario
+# TODO: arkham_sheets.read_set should not set any values for blank cells
+# TODO: figure out correct value for Unique field
+# TODO: Split off card image creation, make a separate .o8c file
+# TODO: update template
 
 OCTGN package schema:
 

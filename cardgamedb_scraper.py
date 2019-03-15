@@ -86,8 +86,6 @@ def get_card(url):
 
         elif 'traits' in f['class']:
             card['front']['data']['Traits'] = f.text
-        elif 'flavorText' in f['class']:
-            card['front']['data']['Flavor Text'] = f.text
         elif 'gameText' in f['class']:
             if 'Text' not in card['front']['data']:
                 card['front']['data']['Text'] = to_sheets_format(f.text)
@@ -96,7 +94,7 @@ def get_card(url):
             elif f.text.strip():
                 error_msg = 'While scraping url {}, found nonempty second text tag, but only one image'.format(url)
                 raise SetScrapingError(error_msg)
-        elif 'skills' in f['class'] or 'stats' in f['class']:   # don't need these
+        elif 'skills' in f['class'] or 'stats' in f['class'] or 'flavorText' in f['class']:   # don't need these
             continue
         else:
             error_msg = 'While scraping url {}, found div tag with unexpected class {}'.format(url, f['class'])
