@@ -12,8 +12,6 @@
 # TODO: handle star symbol (uniqueness) in card names -- should be removed and
 #       marked as unique
 # TODO: Search multiple locations for existing sets -- octgn directory, dev directory
-# TODO: Fix missing fields (number) from 'Lazy' TCU pack
-# TODO: Store the 'canonical' version of everything so far in a huge json file
 # TODO: use arkhamdb API to get canonical IDs where available. (e.g. preview cards)
 # TODO: script to create OCTGN deck file from public arkhamdb deck
 
