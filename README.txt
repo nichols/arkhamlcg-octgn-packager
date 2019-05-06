@@ -1,15 +1,21 @@
 
-# TODO: better logging and error messages
 # TODO: detect scenarios by looking at encounter sets which contain acts/agendas
 # TODO: split off scenario sheet population as a separate script so we can run it
 #       after the cards sheet has been completely filled in
 # TODO: write test suite
 # TODO: add mini cards for investigators
 # TODO: documentation: in scenarios sheet don't try to add an encounter set associated with a specific scenario
-# TODO: arkham_sheets.read_set should not set any values for blank cells
 # TODO: figure out correct value for Unique field
-# TODO: Split off card image creation, make a separate .o8c file
-# TODO: update template
+# TODO: zip octgn package
+# TODO: zip image pack
+# TODO: Create files in a special temporary root directory with unique name to avoid merging
+# TODO: handle star symbol (uniqueness) in card names -- should be removed and
+#       marked as unique
+# TODO: Search multiple locations for existing sets -- octgn directory, dev directory
+# TODO: Fix missing fields (number) from 'Lazy' TCU pack
+# TODO: Store the 'canonical' version of everything so far in a huge json file
+# TODO: use arkhamdb API to get canonical IDs where available. (e.g. preview cards)
+# TODO: script to create OCTGN deck file from public arkhamdb deck
 
 OCTGN package schema:
 

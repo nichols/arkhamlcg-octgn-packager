@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 
-# TODO: add module description
+# module for creating an Arkham Horror LCG set object (as described in
+# arkham_common) by scraping data from cardgamedb.com
+
+# cardgamedb urls look like this:
+# http://www.cardgamedb.com/index.php/arkhamhorror/arkham-horror-the-card-game/_/the-path-to-carcosa-cycle/the-pallid-mask/
 
 import sys
 import re
@@ -8,27 +12,23 @@ import requests
 import arkham_common
 from bs4 import BeautifulSoup
 
-suffix_1000_per_page = '?per_page=1000'
-
-# cardgamedb urls look like this:
-# http://www.cardgamedb.com/index.php/arkhamhorror/arkham-horror-the-card-game/_/the-path-to-carcosa-cycle/the-pallid-mask/
-
 class SetScrapingError(Exception):
     """Base class for exceptions in this module."""
     pass
 
+suffix_1000_per_page = '?per_page=1000'
 
+# translate some symbols that are represented strangely on the cardgamedb set page
+# into human-readable symbols
 cardgamedb_symbol_map = {
     '\udb88\udd83': '[Investigators]',
+    '[per_investigator]': '[Investigators]',
 }
 
-
-# replace weird encoding from cardgamedb with human-readable symbols
 def to_sheets_format(text):
     for k, v in cardgamedb_symbol_map.items():
         text.replace(k, v)
     return text
-
 
 
 def get_card_raw_data(url):
@@ -135,7 +135,7 @@ def main():
     url = sys.argv[1]
     arkhamset = scrape_set_from_url(url)
 
-    path = arkham_data.create_set_file(arkhamset)
+    path = arkham_common.create_set_file(arkhamset)
     print("Wrote set data to {}".format(path))
 
 

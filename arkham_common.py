@@ -1,4 +1,4 @@
-# TODO: add module description
+# common functions used across the whole package
 
 import re
 import json
@@ -7,69 +7,70 @@ import json
 # objects (set, card, scenario, etc) are stored as simple dicts for convenience.
 
 set_type_enum = [
-    'Core Set',
-    'Expansion',
-    'Mythos Pack',
-    'Scenario Pack',
-    'Other',
+  'Core Set',
+  'Expansion',
+  'Mythos Pack',
+  'Scenario Pack',
+  'Other',
 ]
 
-set_fields = [      # types                 cardgamedb?
-  'id',
-  'name',           #                       yes
-  'type',           # set_type_enum
-  'cards',          # [card]
-  'scenarios',      # [scenario]
+set = {
+  'id': string,             # uuid
+  'name': string,           # from cardgamedb
+  'type': string            # set_type_enum
+  'cards': [card],
+  'scenarios': [scenario],
+}
+
+card = {
+  'id': string,             # uuid
+  'number': string,         # from cardgamedb
+  'quantity': string,       # from cardgamedb; default:1
+  'encounter_set': string,
+  'front': side,
+  'back': side,
+}
+
+
+side = {
+  'name': string,           # from cardgamedb (front only)
+  'image_url': string       # from cardgamedb
+  'data': side_data
 ]
 
-card_fields = [     # types                 cardgamedb?
-  'id',
-  'number',         #                       yes
-  'quantity',       # int default:1         yes
-  'encounter_set',
-  'front',          # side
-  'back',           # side
-]
 
+scenario = {
+  'number': string,
+  'name': string,
+  'campaign': string,
+  'campaign_code': string,
+  'Agendas': [scenario_card],
+  'Act': [scenario_card],
+  'Location': [scenario_card],
+  'Encounter': [scenario_card],
+  'Setup': [scenario_card],
+  'Special': [scenario_card],
+  'Second Special': [scenario_card],
+}
 
-side_fields = [     # type                  cardgamedb?
-  'name',           #                       front only
-  'image_url'       #                       yes
-  'data'            # side_data
-]
-
-
-scenario_fields = [ # type                  cardgamedb?
-    'number',
-    'name',
-    'campaign',
-    'campaign_code',
-    'agendas',        # [scenario_card]
-    'act',            # [scenario_card]
-    'location',       # [scenario_card]
-    'encounter',      # [scenario_card]
-    'setup',          # [scenario_card]
-]
-
-scenario_card_fields = [
-  'id',
-  'name',
-  'number',
-  'encounter_set',
-  'quantity',
-  'source',
-]
+scenario_card = {
+  'id': string              # uuid,
+  'name': string,
+  'number': string,
+  'encounter_set': string,
+  'quantity': string,
+  'source': string,         # uuid
+}
 """
 
-# simple fields
-side_data_fields = [
+side_data = [       # all of these fields are strings
   'Subtitle',
   'Type',
   'Subtype',
   'Traits',
   'Text',
   'Health',         # Health for investigators, assets, and enemies
-  'Sanity',
+  'Sanity',         # Sanity for investigators and assets
   'Class',          # Faction for player cards, "Mythos" for scenario cards
   'Level',          # Level for player cards, agenda/act number for agendas/acts
   'Cost',
@@ -77,7 +78,7 @@ side_data_fields = [
   'Intellect',      # Skill for investigators, skill icon on other player cards
   'Combat',         # Skill for investigators, skill icon on other player cards, fight difficulty for enemies
   'Agility',        # Skill for investigators, skill icon on other player cards, evade difficulty for enemies
-  'Wild',
+  'Wild',           # Skill icon for player cards. Not used in OCTGN for some reason
   'Slot',
   'Unique',
   'Shroud',
@@ -88,6 +89,8 @@ side_data_fields = [
   'Victory Points',
 ]
 
+# these are the fields which may contain special symbols that are represented
+# differently in cardgamedb and OCTGN
 side_data_fields_with_possible_symbols = [
   'Text',
   'Health',         # Health for investigators, assets, and enemies
@@ -103,7 +106,10 @@ side_data_fields_with_possible_symbols = [
 
 # side_data fields supported by OCTGN but not provided by cardgamedb
 # 'Subtype', 'Encounter Set', 'Unique', 'Shroud', 'Clues', 'Doom', 'Victory Points'
-# these can be entered manually in a spreadsheet
+# these can be entered manually the spreadsheet
+
+
+octgn_game_id = 'a6d114c7-2e2a-4896-ad8c-0330605c90bf'
 
 
 def is_double_sided(card):
@@ -126,9 +132,11 @@ def get_number_and_face(number):
     return number, face
 
 
-# We want to sort first by number and then by a/b face indicator. It's awkward.
+# We want to sort first by number and then by a/b face indicator.
+# This would be easy to express as a binary comparison operator, but it's
+# annoying to do as a key unary operator.
 def card_number_sort_key(card):
-    number, face = get_number_and_face(card.get(number, '999'))
+    number, face = get_number_and_face(card.get('number', '999'))
     face = ord(face) if face else 0
     return 100*int(number) + face
 
@@ -139,14 +147,9 @@ def load_set(json_file_path):
     return arkhamset
 
 
-def create_set_file(arkhamset, path=None):
-    if path is None:
+def create_set_file(arkhamset, json_file_path=None):
+    if json_file_path is None:
         json_file_path = arkhamset['name'] + '.json'
     with open(json_file_path, 'w') as json_file:
         json.dump(arkhamset, json_file)
     return json_file_path
-
-
-
-if __name__ == '__main__':
-    pass
