@@ -426,7 +426,7 @@ def create_scenario_xml(scenario, set_id):
     return deck_root
 
 
-def create_octgn_package(arkhamset):
+def create_octgn_data(arkhamset):
     if 'id' not in arkhamset or not arkhamset['id']:
         arkhamset['id'] = uuid.uuid4()
 
@@ -460,12 +460,5 @@ def create_octgn_package(arkhamset):
         scenario_xml_tree.write(scenario_file_path, encoding='UTF-8', xml_declaration=True)
         print("created scenario file {}.".format(scenario_file_path))
 
+    return (set_path, scenario_file_path)
 
-
-    # TODO: zip directory tree at the end?
-    # TODO: return path to created directory or archive
-    return None
-
-
-if __name__ == '__main__':
-    pass

@@ -150,6 +150,9 @@ def load_set(json_file_path):
 def create_set_file(arkhamset, json_file_path=None):
     if json_file_path is None:
         json_file_path = arkhamset['name'] + '.json'
-    with open(json_file_path, 'w') as json_file:
-        json.dump(arkhamset, json_file)
-    return json_file_path
+    try:
+        with open(json_file_path, 'w') as json_file:
+            json.dump(arkhamset, json_file)
+        return json_file_path
+    except:
+        raise

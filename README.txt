@@ -14,6 +14,7 @@
 # TODO: Search multiple locations for existing sets -- octgn directory, dev directory
 # TODO: use arkhamdb API to get canonical IDs where available. (e.g. preview cards)
 # TODO: script to create OCTGN deck file from public arkhamdb deck
+# TODO: throw more exceptions when stuff is missing from spreadsheet, e.g. scenario name and number
 
 OCTGN package schema:
 

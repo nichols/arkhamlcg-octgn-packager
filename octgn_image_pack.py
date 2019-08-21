@@ -55,7 +55,7 @@ def create_image_pack(arkhamset):
     num = create_card_image_files(arkhamset, imagedb_path)
     print("created {} card image files in {}.".format(num, imagedb_path))
     # TODO: zip images into o8c file
-    return ""
+    return imagedb_path
 
 
 def create_image_pack_for_set_from_json_file(json_file_path):
