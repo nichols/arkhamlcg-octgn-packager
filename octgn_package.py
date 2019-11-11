@@ -214,7 +214,6 @@ def create_set_xml(arkhamset):
         'gameId': arkham_common.octgn_game_id,
         'gameVersion': '1.0.0.0',
         'version': '1.0.0',
-        'standalone': 'True',
     }
     set_root = ET.Element('set', set_attrib)
     cards_root = ET.SubElement(set_root, 'cards')
@@ -414,7 +413,7 @@ def create_scenario_xml(scenario, set_id):
                         element = find_xml_element_for_scenario_card(card,
                             source_root)
                         update_scenario_card_from_xml_element(card, element)
-                        
+
                     section_roots[section].append(
                         create_xml_element_for_scenario_card(card))
 
@@ -461,4 +460,3 @@ def create_octgn_data(arkhamset):
         print("created scenario file {}.".format(scenario_file_path))
 
     return (set_path, scenario_file_path)
-
