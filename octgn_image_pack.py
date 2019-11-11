@@ -31,13 +31,15 @@ def create_card_image_files(arkhamset, path):
   num = 0
   for card in arkhamset['cards']:
     url_front = card['front'].get('image_url', '')
-    dest_front = path + '/' + card['id'] + get_extension_from_url(url_front)
+    dest_front = os.path.join(
+        path, card['id'] + get_extension_from_url(url_front))
     if download_img(url_front, dest_front):
       num += 1
 
     if arkham_common.is_double_sided(card):
       url_back = card['back']['image_url']
-      dest_back = path + '/' + card['id'] + '.b' + get_extension_from_url(url_back)
+      dest_back = os.path.join(
+        path, card['id'] + '.b' + get_extension_from_url(url_back))
       if download_img(url_back, dest_back):
         num += 1
 
@@ -46,8 +48,9 @@ def create_card_image_files(arkhamset, path):
 
 def create_image_pack(arkhamset):
     # create image files for cards
-    imagedb_path = "ImageDatabase/{}/Sets/{}/Cards/".format(
-        arkham_common.octgn_game_id, arkhamset['id'])
+    imagedb_path = os.path.join(
+        "ImageDatabase", arkham_common.octgn_game_id, "Sets",
+        arkhamset['id'], "Cards")
     try:
       os.makedirs(imagedb_path)
     except FileExistsError:

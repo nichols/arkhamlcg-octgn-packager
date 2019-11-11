@@ -13,7 +13,8 @@ import arkham_common
 # <My Documents>/OCTGN/GameDatabase/a6d114c7-2e2a-4896-ad8c-0330605c90bf/Sets
 octgn_sets_directories = [
     'Sets',         # for development
-    'GameDatabase/{}/Sets'.format(arkham_common.octgn_game_id),
+    os.path.join(
+        'GameDatabase', arkham_common.octgn_game_id, 'Sets'),
 ]
 
 uuid_regex_pattern = '^[0-9a-f]{8}(?:-?[0-9a-f]{4}){3}-?[0-9a-z]{12}$'
@@ -314,7 +315,7 @@ def validate_source_field(card, default):
 
 def get_existing_set_xml_path(source):
     for dir in octgn_sets_directories:
-        path = "{}/{}/set.xml".format(dir, source)
+        path = os.path.join(dir, source, "set.xml")
         if os.path.exists(path):
             return path
     error_msg = "Couldn't locate existing set with uuid {}".format(source)
@@ -430,12 +431,14 @@ def create_octgn_data(arkhamset):
         arkhamset['id'] = uuid.uuid4()
 
     # create xml file containing all cards in set
-    set_dir = "GameDatabase/{}/Sets/{}/".format(arkham_common.octgn_game_id, arkhamset['id'])
+    set_dir = os.path.join(
+        "GameDatabase", arkham_common.octgn_game_id, "Sets", arkhamset['id'])
     try:
         os.makedirs(set_dir)
     except FileExistsError:
         pass
-    set_path = set_dir + 'set.xml'
+    set_filename = 'set.xml'
+    set_path = os.path.join(set_dir, set_filename)
     set_root = create_set_xml(arkhamset)
     xml_tree = ET.ElementTree(set_root)
     xml_tree.write(set_path, encoding='UTF-8', xml_declaration=True)
@@ -443,20 +446,23 @@ def create_octgn_data(arkhamset):
 
     # create xml file for each scenario with cards needed for play
     #gamedb_decks_path = "GameDatabase/{}/Decks/".format(game_id)
-    decks_path = "Decks/Arkham Horror - The Card Game/"
+    game_path = os.path.join("Decks", "Arkham Horror - The Card Game")
     for scenario in arkhamset.get('scenarios', []):
-        campaign_path = "{}/{} - {}".format(
-                decks_path, scenario['campaign_code'], scenario['campaign'])
+        campaign_dir = "{} - {}".format(
+                scenario['campaign_code'], scenario['campaign'])
+        campaign_path = os.path.join(game_path, campaign_dir)
         try:
             os.makedirs(campaign_path)
         except FileExistsError:
             pass
-        scenario_string = "{} - {}".format(scenario['number'], scenario['name'])
-        scenario_file_path = "{}/{}.o8d".format(campaign_path, scenario_string)
+        scenario_filename = "{} - {}.o8d".format(
+            scenario['number'], scenario['name'])
+        scenario_path = os.path.join(campaign_path, scenario_filename)
 
         scenario_root = create_scenario_xml(scenario, arkhamset['id'])
         scenario_xml_tree = ET.ElementTree(scenario_root)
-        scenario_xml_tree.write(scenario_file_path, encoding='UTF-8', xml_declaration=True)
-        print("created scenario file {}.".format(scenario_file_path))
+        scenario_xml_tree.write(
+            scenario_path, encoding='UTF-8', xml_declaration=True)
+        print("created scenario file {}.".format(scenario_path))
 
-    return (set_path, scenario_file_path)
+    return (set_path, scenario_path)
