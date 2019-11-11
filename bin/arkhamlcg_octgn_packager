@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+
+import argparse
+import re
+from zipfile import ZipFile
+
+import arkhamlcg_octgn_packager
+
+cardgamedb_url_regex = r"^(?:(?:https?://)?www\.)?cardgamedb\.com/index\.php/arkhamhorror/arkham-horror-the-card-game/_/"
+
+def is_valid_cardgamedb_url(s):
+    if not re.match(s, cardgamedb_url_regex):
+        raise argparse.ArgumentTypeError("URL does not match cardgamedb.com set URL.")
+    return s
+
+def is_valid_zip_path(s):
+    if not re.search(s, r"\w+\.zip$"):
+        raise argparse.ArgumentTypeError
+    return s
+
+parser = argparse.ArgumentParser()
+parser.add_argument("url", type=is_valid_cardgamedb_url, help="url of a set on cardgamedb.com")
+parser.add_argument("-z", "--zip", action="store_true", help="create zip archive")
+parser.add_argument("-i", "--with_images", action="store_true", help="also download watermarked card images")
+parser.add_argument("-v", "--verbose", action="store_true", help="print debug info")
+args = parser.parse_args()
+
+arkhamset = arkham_octgn_packager.scrape_set_from_url(url)
+set_path = arkham_octgn_packager.create_octgn_data(arkhamset)
+images_path = None
+if args.with_images:
+    images_path = arkham_octgn_packager.create_image_pack(arkhamset)
+
+set_zip_name = "{}.zip".format(url.split("/")[-1])
+with ZipFile(set_zip_name, "w") as package_zip:
+    package_zip.write(set_path)
+    if images_path:
+        package_zip.write(images_path)
+
+# TODO delete tmp files

@@ -5,51 +5,19 @@
 import re
 import uuid
 import pickle
-import os.path
-from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-import arkham_common
-
-# If modifying these scopes, delete the file token.pickle.
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+import arkham_lib
+import sheets
 
 sheet_template_filename = 'template.pickle'
-
 
 class SheetDataError(Exception):
     """Base class for exceptions in this module."""
     pass
 
-
-def get_sheets_api_service():
-    creds = None
-    # The file token.pickle stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
-            creds = pickle.load(token)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
-            creds = flow.run_local_server()
-        # Save the credentials for the next run
-        with open('token.pickle', 'wb') as token:
-            pickle.dump(creds, token)
-
-    service = build('sheets', 'v4', credentials=creds)
-    return service
-
-
 #
 # Methods for writing an arkham set to a spreadsheet
 #
-
+"""
 
 def fill_set_info_sheet(service, spreadsheet_id, arkhamset):
     range = 'Set!B2:B6'
@@ -156,9 +124,7 @@ def create_spreadsheet_for_set(arkhamset):
     if 'id' not in arkhamset:
         arkhamset['id'] = str(uuid.uuid4())
 
-    print('Starting Google Sheets API Service... ', end='')
     service = get_sheets_api_service()
-    print('Done.')
 
     print('Creating template sheet... ', end='')
     with open(sheet_template_filename, 'rb') as sheet_template_file:
@@ -189,20 +155,11 @@ def create_spreadsheet_for_set(arkhamset):
 # Methods for reading arkham set object from a spreadsheet
 #
 
-
-def get_string_from_cell(cell):
-    return cell.get('userEnteredValue', {}).get('stringValue', '')
-
-
-def read_row(row):
-    return [get_string_from_cell(cell) for cell in row['values']]
-
-
 def read_set_info_sheet(sheet):
     rows = sheet['data'][0]['rowData'][1:]
 
     try:
-        column = [get_string_from_cell(row['values'][1]) for row in rows]
+        column = [sheets.get_string_from_cell(row['values'][1]) for row in rows]
         arkhamset = dict(zip(['id', 'name', 'type'], column))
     except IndexError:
         raise SheetDataError
@@ -220,7 +177,7 @@ def read_cards_sheet(sheet):
     cards = []
 
     for row in rows:
-        name, number, id, image_url, quantity, encounter_set, *fields = read_row(row)
+        name, number, id, image_url, quantity, encounter_set, *fields = sheets.read_row(row)
         if not name or not number:
             continue
 
@@ -273,7 +230,7 @@ def read_cards_sheet(sheet):
 
 
 def read_scenarios_sheet(sheet):
-    rows = map(read_row, sheet['data'][0]['rowData'][1:])
+    rows = map(sheets.read_row, sheet['data'][0]['rowData'][1:])
 
     scenario_dict = {}
 
@@ -316,19 +273,10 @@ def read_scenarios_sheet(sheet):
     return scenarios
 
 
-def get_spreadsheet_id_from_url(url):
-    m = re.search('/spreadsheets/d/([a-zA-Z0-9-_]+)', url)
-    if not m:
-        print('{} is not a properly formatted google sheets URL'.format(url))
-        return ''
-    id = m.group(1)
-    return id
-
-
 def read_set(url, get_scenarios=True):
-    service = get_sheets_api_service()
+    service = sheets.get_sheets_api_service()
 
-    spreadsheet_id = get_spreadsheet_id_from_url(url)
+    spreadsheet_id = sheets.get_spreadsheet_id_from_url(url)
     spreadsheet = service.spreadsheets().get(
         spreadsheetId=spreadsheet_id, includeGridData=True).execute()
 
@@ -340,3 +288,4 @@ def read_set(url, get_scenarios=True):
         arkhamset['scenarios'] = []
 
     return arkhamset
+"""

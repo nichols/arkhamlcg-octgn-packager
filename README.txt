@@ -1,3 +1,13 @@
+Scripts and libraries for creating OCTGN packages for Arkham Horror: The Card
+Game sets using the official data from cardgamedb.com.
+
+DISCLAIMER: Anything you do with this software is entirely your own
+responsibility. Images you download using this software are solely for your own
+personal use and must not be uploaded to any public forum. If you enjoy playing
+Arkham Horror: The Card Game and want FFG to keep releasing new content, the
+right thing to do is to buy physical copies of the cards and support the game's
+creators.
+
 
 # TODO: detect scenarios by looking at encounter sets which contain acts/agendas
 # TODO: split off scenario sheet population as a separate script so we can run it
@@ -16,7 +26,8 @@
 # TODO: script to create OCTGN deck file from public arkhamdb deck
 # TODO: throw more exceptions when stuff is missing from spreadsheet, e.g. scenario name and number
 
-OCTGN package schema:
+
+OCTGN package structure:
 
 <OCTGN directory>
   Decks
@@ -30,7 +41,7 @@ OCTGN package schema:
           <ScenarioNumber> - <ScenarioName>.o8d
       Sets
         <SetGUID>
-          set.xml                               # XML file with metadata for all cards in this set
+          set.xml    # XML file with metadata for all cards in this set
   ImageDatabase
     a6d114c7-2e2a-4896-ad8c-0330605c90bf
       Sets
@@ -40,4 +51,5 @@ OCTGN package schema:
             <CardGUID>.b.jpg    # reverse side
             <CardGUID>.png      # PNGs are OK too
 
-Scenarios are numbered as they are in the campaign guide, e.g. '1a - Extracurricular Activity'
+Scenarios are numbered as they are in the campaign guide, e.g.
+'1a - Extracurricular Activity'

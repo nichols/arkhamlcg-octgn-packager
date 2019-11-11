@@ -5,9 +5,36 @@ import uuid
 import os
 import re
 import xml.etree.ElementTree as ET
-import arkham_common
+import arkham_lib
 
 
+"""
+scenario = {
+  'number': string,
+  'name': string,
+  'campaign': string,
+  'campaign_code': string,
+  'Agendas': [scenario_card],
+  'Act': [scenario_card],
+  'Location': [scenario_card],
+  'Encounter': [scenario_card],
+  'Setup': [scenario_card],
+  'Special': [scenario_card],
+  'Second Special': [scenario_card],
+}
+
+scenario_card = {
+  'id': string              # uuid,
+  'name': string,
+  'number': string,
+  'encounter_set': string,
+  'quantity': string,
+  'source': string,         # uuid
+}
+"""
+
+
+"""
 # directories to search to find existing sets.
 # If you have OCTGN installed in windows, this is probably
 # <My Documents>/OCTGN/GameDatabase/a6d114c7-2e2a-4896-ad8c-0330605c90bf/Sets
@@ -16,7 +43,7 @@ octgn_sets_directories = [
     'GameDatabase/{}/Sets'.format(arkham_common.octgn_game_id),
 ]
 
-uuid_regex_pattern = '^[0-9a-f]{8}(?:-?[0-9a-f]{4}){3}-?[0-9a-z]{12}$'
+
 
 campaign_ids = {
     'core set':             '0000f984-d06f-44cb-bf1c-d66a620acad8',
@@ -414,7 +441,7 @@ def create_scenario_xml(scenario, set_id):
                         element = find_xml_element_for_scenario_card(card,
                             source_root)
                         update_scenario_card_from_xml_element(card, element)
-                        
+
                     section_roots[section].append(
                         create_xml_element_for_scenario_card(card))
 
@@ -461,4 +488,4 @@ def create_octgn_data(arkhamset):
         print("created scenario file {}.".format(scenario_file_path))
 
     return (set_path, scenario_file_path)
-
+"""
